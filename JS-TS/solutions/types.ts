@@ -2,7 +2,7 @@ interface Todo {
   id: number; //unique identifier
   title: string; //short title
   description?: string; //detailed text
-  status: TodoStatus; //current status
+  status?: TodoStatus; //current status
   readonly createdAt: Date; // creation timestamp
 }
 
