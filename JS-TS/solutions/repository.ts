@@ -1,24 +1,50 @@
+import { filterArray, mapArray } from "./array-helpers";
+import { getTodo } from "./todo-crud";
 export class InMemoryRepository<T extends { id: number }> {
   // private storage
   private items: T[] = [];
 
   add(entity: T): T {
-    throw new Error('add: not implemented');
+    if (entity === null || entity === undefined) {
+      throw new TypeError("Entity cannot be null or undefined");
+    }
+    for (let item of this.items) {
+      if (item.id === entity.id) {
+        throw new Error(`Object with id = ${entity.id} is already exist`);
+      }
+    }
+
+    this.items.push(entity);
+    return entity;
   }
 
   update(id: number, patch: Partial<T>): T {
-    throw new Error('update: not implemented');
+    const index = this.items.findIndex((item) => item.id === id);
+    if (index === -1) throw new Error(`Object with id = ${id} not found`);
+    this.items = mapArray(this.items, (item) => (item.id === id ? { ...item, ...patch } : item));
+
+    return this.items[index];
   }
 
   remove(id: number): void {
-    throw new Error('remove: not implemented');
+    let isIdFound = false;
+    for (let item of this.items) {
+      if (item.id === id) {
+        isIdFound = true;
+      }
+    }
+    if (!isIdFound) throw new Error(`Object with id = ${id} not found`);
+    this.items = filterArray(this.items, (item) => item.id !== id);
   }
 
   findById(id: number): T | undefined {
-    throw new Error('findById: not implemented');
+    for (const item of this.items) {
+      if (item.id === id) return item;
+    }
+    return undefined;
   }
 
   findAll(): T[] {
-    throw new Error('findAll: not implemented');
+    return [...this.items];
   }
 }
