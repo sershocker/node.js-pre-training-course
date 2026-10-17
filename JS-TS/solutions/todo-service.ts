@@ -10,7 +10,9 @@ export class TodoService {
   }
 
   async toggleStatus(id: number): Promise<Todo> {
-    const todoElem = (await this.api.getAll()).find((item) => item.id === id);
+    //console.log("TOGGLESTATUSAAAAAAAAAAAAAAAAAAAAAAAA");
+    const todoElem = await (await this.api.getAll()).find((item) => item.id === id);
+    //console.log("TOGGLESTATUS2222222222222222222222");
     if (!todoElem) throw new Error(`Object with id = ${id} not found`);
     const todoStatus = todoElem.status === TodoStatus.COMPLETED;
 
@@ -22,6 +24,7 @@ export class TodoService {
   }
 
   async search(keyword: string): Promise<Todo[]> {
+    if (keyword === "") return await this.api.getAll();
     const answer: Todo[] = [];
     const word = keyword.toLowerCase();
     const items = await this.api.getAll();

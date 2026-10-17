@@ -13,7 +13,6 @@ export class InMemoryRepository<T extends { id: number }> {
         throw new Error(`Object with id = ${entity.id} is already exist`);
       }
     }
-
     this.items.push(entity);
     return entity;
   }
