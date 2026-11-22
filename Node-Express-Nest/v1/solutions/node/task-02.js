@@ -1,3 +1,4 @@
+const e = require("express");
 const fs = require("fs");
 const { Transform } = require("stream");
 const { pipeline } = require("stream/promises");
@@ -6,27 +7,56 @@ class CSVParser extends Transform {
   constructor(options = {}) {
     super({ objectMode: true });
     // TODO: Initialize properties
-    // - this.headers = null;
-    // - this.lineNumber = 0;
-    // - this.buffer = '';
+    this.headers = null;
+    this.lineNumber = 0;
+    this.buffer = "";
   }
 
   _transform(chunk, encoding, callback) {
-    // TODO: Implement CSV parsing
-    // 1. Convert chunk to string and add to buffer
-    // 2. Split buffer by newlines
-    // 3. Keep last incomplete line in buffer
-    // 4. Process complete lines:
-    //    - First line: extract headers
-    //    - Other lines: create objects with headers as keys
-    // 5. Push objects to next stream
+    try {
+      this.buffer += chunk.toString().replaceAll("\r", "");
+      this.newObjects = this.buffer.split("\n");
+      this.buffer = this.newObjects.pop() ?? "";
 
-    callback();
+      for (const line of this.newObjects) {
+        const cleanLine = line.trim();
+        if (!cleanLine) continue;
+        this.lineNumber++;
+        if (!this.headers) {
+          this.headers = cleanLine.split(",").map((header) => header.trim());
+          continue;
+        }
+
+        const values = cleanLine.split(",").map((value) => value.trim());
+        const record = {};
+        this.headers.forEach((header, index) => {
+          record[header] = values[index] ?? "";
+        });
+        this.push(record);
+      }
+      callback();
+    } catch (error) {
+      callback(error);
+    }
   }
 
   _flush(callback) {
-    // TODO: Process any remaining data in buffer
-    callback();
+    try {
+      if (this.buffer.trim()) {
+        this.lineNumber++;
+        const values = this.buffer.split(",").map((cutter) => cutter.trim());
+        const record = {};
+        this.headers.forEach((header, index) => {
+          record[header] = values[index] ?? "";
+        });
+        this.push(record);
+      }
+      this.buffer = "";
+      // TODO: Process any remaining data in buffer
+      callback();
+    } catch (error) {
+      callback(error);
+    }
   }
 }
 
@@ -40,14 +70,12 @@ class DataTransformer extends Transform {
   }
 
   _transform(record, encoding, callback) {
-    // TODO: Apply transformations to record
-    // 1. Capitalize name using capitalizeName()
-    // 2. Normalize email using normalizeEmail()
-    // 3. Format phone using formatPhone()
-    // 4. Standardize date using standardizeDate()
-    // 5. Capitalize city name
-    // 6. Push transformed record
-
+    record.name = capitalizeName(record.name);
+    record.email = normalizeEmail(record.email);
+    record.phone = formatPhone(record.phone);
+    record.birthdate = standardizeDate(record.birthdate);
+    record.city = capitalizeName(record.city);
+    this.push(record);
     callback();
   }
 }
@@ -60,17 +88,40 @@ class CSVWriter extends Transform {
   constructor(options = {}) {
     super({ objectMode: true });
     // TODO: Initialize properties
-    // - this.headerWritten = false;
+    this.headerWritten = false;
   }
 
   _transform(record, encoding, callback) {
-    // TODO: Convert object to CSV format
-    // 1. Write headers on first record
-    // 2. Convert record values to CSV line
-    // 3. Handle special characters and quotes
-    // 4. Push CSV line as string
+    try {
+      if (!record) {
+        throw new Error();
+      }
+      if (!this.headerWritten) {
+        const headers = Object.keys(record)
+          .map((key) => this._formatter(key))
+          .toString();
+        this.headerWritten = true;
+        this.push(headers + "\n");
+      }
+      let output = "";
+      output =
+        Object.values(record)
+          .map((value) => this._formatter(value))
+          .join(",") + "\n";
 
-    callback();
+      this.push(output);
+      callback();
+    } catch (error) {
+      callback(error);
+    }
+  }
+
+  _formatter(value) {
+    if (value === null || value === undefined) return "";
+    value = value.toString();
+    if (value.includes(`"`)) value = value.replaceAll(`"`, `""`);
+    if (value.includes(`,`) || value.includes("\n") || value.includes(`"`)) value = `"` + value + `"`;
+    return value;
   }
 }
 
@@ -84,16 +135,7 @@ class CSVWriter extends Transform {
  * @returns {string} Capitalized name
  */
 function capitalizeName(name) {
-  // TODO: Implement name capitalization
-  // 1. Handle empty/null names
-  // 2. Split by spaces and hyphens
-  // 3. Capitalize each part
-  // 4. Join back together
-  // Examples:
-  // "john doe" → "John Doe"
-  // "mary-jane smith" → "Mary-Jane Smith"
-
-  return name;
+  return name.toLowerCase().replace(/(^|[\s-])\p{L}/gu, (match) => match.toUpperCase());
 }
 
 /**
@@ -102,12 +144,12 @@ function capitalizeName(name) {
  * @returns {string} Normalized email or original if invalid
  */
 function normalizeEmail(email) {
-  // TODO: Implement email normalization
-  // 1. Convert to lowercase
-  // 2. Validate basic email format (contains @ and .)
-  // 3. Return normalized email or original if invalid
+  const emailArray = email.trim().split("@");
+  if (emailArray.length !== 2 || emailArray[0].length === 0 || emailArray[1].length === 0) return email;
+  const dotArray = emailArray[1].split(".");
+  if (dotArray.length < 2 || dotArray[dotArray.length - 1].length === 0) return email;
 
-  return email;
+  return email.toLowerCase().trim();
 }
 
 /**
@@ -116,13 +158,12 @@ function normalizeEmail(email) {
  * @returns {string} Formatted phone or "INVALID"
  */
 function formatPhone(phone) {
-  // TODO: Implement phone formatting
-  // 1. Extract only digits
-  // 2. Check if exactly 10 digits
-  // 3. Format as (XXX) XXX-XXXX
-  // 4. Return "INVALID" if not valid
+  if (/\p{L}/u.test(phone)) return "INVALID";
+  const numbers = phone.replace(/\D/g, "");
+  if (numbers.length !== 10) return "INVALID";
+  const newPhone = numbers.replace(/^(\d{3})(\d{3})(\d{4})$/, "($1) $2-$3");
 
-  return phone;
+  return newPhone;
 }
 
 /**
@@ -131,16 +172,30 @@ function formatPhone(phone) {
  * @returns {string} Date in YYYY-MM-DD format
  */
 function standardizeDate(date) {
-  // TODO: Implement date standardization
-  // 1. Handle different input formats:
-  //    - MM/DD/YYYY
-  //    - YYYY-MM-DD
-  //    - YYYY/MM/DD
-  // 2. Convert to YYYY-MM-DD format
-  // 3. Validate date is real
-  // 4. Return original if invalid
+  if (!date) return "";
+  //if (data === "12/25/1990") return "1990-12-25";
+  if (date.length !== 10) return date;
+  const dateArray = date.trim().split(/[-/]/);
+  if (dateArray.length !== 3) return date;
 
-  return date;
+  let day, month, year;
+  if (dateArray[0].length === 4) {
+    [year, month, day] = dateArray;
+  } else if (dateArray[2].length === 4) {
+    [month, day, year] = dateArray;
+  }
+  if (/\p{L}/u.test(day) || /\p{L}/u.test(month) || /\p{L}/u.test(year)) return date;
+  if (Number(day) > 31 || Number(month) > 12 || Number(year) < 1970) return date;
+
+  const validDate = new Date(year, month - 1, day);
+
+  if (validDate.getFullYear() != year || validDate.getMonth() != month - 1 || validDate.getDate() != day)
+    return date + "5";
+
+  if (day.length === 1) day = "0" + day;
+  if (month.length === 1) month = "0" + month;
+
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -150,17 +205,14 @@ function standardizeDate(date) {
  * @returns {Promise} Promise that resolves when processing is complete
  */
 async function processCSVFile(inputPath, outputPath) {
-  // TODO: Implement the main processing pipeline
-  // 1. Create read stream from input file
-  // 2. Create transform streams (CSVParser, DataTransformer, CSVWriter)
-  // 3. Create write stream to output file
-  // 4. Use pipeline() to connect all streams
-  // 5. Handle errors appropriately
-  // 6. Return promise that resolves when complete
-
   try {
-    // Implementation goes here
-    console.log("CSV processing not implemented yet");
+    await pipeline(
+      fs.createReadStream(inputPath),
+      new CSVParser(),
+      new DataTransformer(),
+      new CSVWriter(),
+      fs.createWriteStream(outputPath),
+    );
   } catch (error) {
     throw new Error(`Failed to process CSV file: ${error.message}`);
   }
@@ -170,9 +222,13 @@ async function processCSVFile(inputPath, outputPath) {
  * Create sample input data for testing
  */
 function createSampleData() {
-  // TODO: Create data directory and sample CSV file
-  // 1. Create 'data' directory if it doesn't exist
-  // 2. Write sample CSV data as specified in task description
+  fs.mkdirSync("data", { recursive: true });
+  const data = `name,email,phone,birthdate,city
+john doe,JOHN.DOE@EXAMPLE.COM,1234567890,12/25/1990,new york
+jane smith,Jane.Smith@Gmail.Com,555-123-4567,1985-03-15,los angeles
+bob johnson,BOB@TEST.COM,invalid-phone,03/22/1992,chicago
+alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
+  fs.writeFileSync("data/users.csv", data, "utf8");
 }
 
 // Export classes and functions
@@ -189,7 +245,7 @@ module.exports = {
 };
 
 // Example usage (for testing):
-const isReadyToTest = false;
+const isReadyToTest = true;
 
 if (isReadyToTest) {
   // Create sample data

@@ -86,9 +86,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
     for (const testCase of testCases) {
       const result = capitalizeName(testCase.input);
       if (result !== testCase.expected) {
-        throw new Error(
-          `Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`
-        );
+        throw new Error(`Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`);
       }
     }
   }
@@ -109,9 +107,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
     for (const testCase of testCases) {
       const result = normalizeEmail(testCase.input);
       if (result !== testCase.expected) {
-        throw new Error(
-          `Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`
-        );
+        throw new Error(`Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`);
       }
     }
   }
@@ -133,9 +129,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
     for (const testCase of testCases) {
       const result = formatPhone(testCase.input);
       if (result !== testCase.expected) {
-        throw new Error(
-          `Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`
-        );
+        throw new Error(`Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`);
       }
     }
   }
@@ -157,9 +151,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
     for (const testCase of testCases) {
       const result = standardizeDate(testCase.input);
       if (result !== testCase.expected) {
-        throw new Error(
-          `Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`
-        );
+        throw new Error(`Expected "${testCase.expected}", got "${result}" for input "${testCase.input}"`);
       }
     }
   }
@@ -170,8 +162,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
   async testCSVParser() {
     const { Readable } = require("stream");
 
-    const csvData =
-      "name,email\njohn doe,john@test.com\njane smith,jane@test.com";
+    const csvData = "name,email\njohn doe,john@test.com\njane smith,jane@test.com";
     const parser = new CSVParser();
     const results = [];
 
@@ -191,9 +182,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
           }
 
           if (results[0].name !== "john doe") {
-            throw new Error(
-              `Expected name "john doe", got "${results[0].name}"`
-            );
+            throw new Error(`Expected name "john doe", got "${results[0].name}"`);
           }
 
           resolve();
@@ -227,27 +216,19 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
       transformer.on("data", (transformed) => {
         try {
           if (transformed.name !== "John Doe") {
-            throw new Error(
-              `Expected name "John Doe", got "${transformed.name}"`
-            );
+            throw new Error(`Expected name "John Doe", got "${transformed.name}"`);
           }
 
           if (transformed.email !== "john@test.com") {
-            throw new Error(
-              `Expected email "john@test.com", got "${transformed.email}"`
-            );
+            throw new Error(`Expected email "john@test.com", got "${transformed.email}"`);
           }
 
           if (transformed.phone !== "(123) 456-7890") {
-            throw new Error(
-              `Expected phone "(123) 456-7890", got "${transformed.phone}"`
-            );
+            throw new Error(`Expected phone "(123) 456-7890", got "${transformed.phone}"`);
           }
 
           if (transformed.birthdate !== "1990-12-25") {
-            throw new Error(
-              `Expected birthdate "1990-12-25", got "${transformed.birthdate}"`
-            );
+            throw new Error(`Expected birthdate "1990-12-25", got "${transformed.birthdate}"`);
           }
 
           resolve();
@@ -327,9 +308,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
 
     if (lines.length < 5) {
       // Header + 4 data rows
-      throw new Error(
-        `Expected at least 5 lines in output, got ${lines.length}`
-      );
+      throw new Error(`Expected at least 5 lines in output, got ${lines.length}`);
     }
 
     // Check header
@@ -375,9 +354,7 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
       throw new Error("Should have thrown an error for non-existent file");
     } catch (error) {
       if (!error.message.includes("Failed to process CSV file")) {
-        throw new Error(
-          "Error should be properly wrapped with descriptive message"
-        );
+        throw new Error("Error should be properly wrapped with descriptive message");
       }
     }
   }
@@ -417,32 +394,16 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
     this.setupTestEnvironment();
 
     try {
-      await this.runTest("Helper: capitalizeName function", () =>
-        this.testCapitalizeName()
-      );
-      await this.runTest("Helper: normalizeEmail function", () =>
-        this.testNormalizeEmail()
-      );
-      await this.runTest("Helper: formatPhone function", () =>
-        this.testFormatPhone()
-      );
-      await this.runTest("Helper: standardizeDate function", () =>
-        this.testStandardizeDate()
-      );
+      await this.runTest("Helper: capitalizeName function", () => this.testCapitalizeName());
+      await this.runTest("Helper: normalizeEmail function", () => this.testNormalizeEmail());
+      await this.runTest("Helper: formatPhone function", () => this.testFormatPhone());
+      await this.runTest("Helper: standardizeDate function", () => this.testStandardizeDate());
       await this.runTest("Stream: CSVParser class", () => this.testCSVParser());
-      await this.runTest("Stream: DataTransformer class", () =>
-        this.testDataTransformer()
-      );
+      await this.runTest("Stream: DataTransformer class", () => this.testDataTransformer());
       await this.runTest("Stream: CSVWriter class", () => this.testCSVWriter());
-      await this.runTest("Integration: Full file processing", () =>
-        this.testFullProcessing()
-      );
-      await this.runTest("Error handling: Invalid input", () =>
-        this.testErrorHandling()
-      );
-      await this.runTest("Utility: Sample data creation", () =>
-        this.testSampleDataCreation()
-      );
+      await this.runTest("Integration: Full file processing", () => this.testFullProcessing());
+      await this.runTest("Error handling: Invalid input", () => this.testErrorHandling());
+      await this.runTest("Utility: Sample data creation", () => this.testSampleDataCreation());
 
       this.printResults();
     } finally {
@@ -463,30 +424,17 @@ alice brown,alice.brown@company.org,9876543210,1988/07/04,houston`;
 
     console.log(`✅ Passed: ${passed}`);
     console.log(`❌ Failed: ${failed}`);
-    console.log(
-      `📈 Success Rate: ${Math.round(
-        (passed / this.testResults.length) * 100
-      )}%`
-    );
+    console.log(`📈 Success Rate: ${Math.round((passed / this.testResults.length) * 100)}%`);
 
     if (failed > 0) {
       console.log("\n❌ Failed Tests:");
-      this.testResults
-        .filter((r) => r.status === "FAIL")
-        .forEach((r) => console.log(`  - ${r.name}: ${r.error}`));
+      this.testResults.filter((r) => r.status === "FAIL").forEach((r) => console.log(`  - ${r.name}: ${r.error}`));
     }
 
-    console.log(
-      "\n" +
-        (failed === 0
-          ? "🎉 All tests passed!"
-          : "🔧 Some tests need attention.")
-    );
+    console.log("\n" + (failed === 0 ? "🎉 All tests passed!" : "🔧 Some tests need attention."));
 
     if (failed === 0) {
-      console.log(
-        "\n🌟 Great job! Your Stream Transformer implementation is working correctly!"
-      );
+      console.log("\n🌟 Great job! Your Stream Transformer implementation is working correctly!");
       console.log("💡 Try implementing the bonus features:");
       console.log("   - Progress reporting for large files");
       console.log("   - Support for different CSV delimiters");
@@ -506,9 +454,7 @@ async function runTests() {
     await tester.runAllTests();
   } catch (error) {
     console.error("❌ Test setup failed:", error.message);
-    console.log(
-      "\n💡 Make sure you have implemented all required functionality in task-02.js"
-    );
+    console.log("\n💡 Make sure you have implemented all required functionality in task-02.js");
   }
 }
 

@@ -35,25 +35,21 @@ node.js-pre-training-practice/
 ## Recommended Learning Order
 
 1. **JS-TS**: Start with JavaScript/TypeScript fundamentals
-
    - Basic data structures, functions, and ToDo logic
    - Complete all 10 tasks in `JS-TS/tasks/`
 
 2. **React-CSS**: Build the frontend application
-
    - Navigate to `React-CSS/react-todo-app/`
    - Complete React component tasks with TypeScript
    - Run `npm start` to see your components in action
    - Run `npm test` to test your implementations
 
 3. **Node-Express-Nest**: Backend development
-
    - Express.js tasks for API endpoints
    - NestJS tasks for advanced backend patterns
    - Complete all 10 tasks in `Node-Express-Nest/tasks/`
 
 4. **DB-NoSQL**: Database operations
-
    - SQL queries for relational databases
    - MongoDB operations for NoSQL
    - Complete all 10 tasks in `DB-NoSQL/tasks/`
