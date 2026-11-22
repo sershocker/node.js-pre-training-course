@@ -12,12 +12,10 @@ Read a `.csv` file, apply transformations (e.g., capitalize names), and write th
 ### Core Functionality
 
 1. **Read CSV File**
-
    - Use `fs.createReadStream()` to read input CSV
    - Handle large files efficiently with streams
 
 2. **Transform Data**
-
    - Create custom `Transform` stream
    - Apply data transformations line by line
    - Handle CSV parsing and formatting
@@ -29,17 +27,14 @@ Read a `.csv` file, apply transformations (e.g., capitalize names), and write th
 ### Data Transformations Required
 
 1. **Name Capitalization**
-
    - Capitalize first and last names
    - Handle multiple names properly
 
 2. **Email Normalization**
-
    - Convert emails to lowercase
    - Validate email format
 
 3. **Phone Number Formatting**
-
    - Format phone numbers to (XXX) XXX-XXXX
    - Remove invalid phone numbers
 
