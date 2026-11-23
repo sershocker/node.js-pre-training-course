@@ -1,17 +1,56 @@
 const { timeStamp } = require("console");
 const EventEmitter = require("events");
+const Path = require("path");
+const fs = require("fs/promises");
 
 /**
  * Custom Event Emitter for a messaging system
  * Extend Node.js EventEmitter to create a pub-sub messaging system
  */
+
+class MessagePersistence {
+  constructor(path = Path.join("data", "messages.json")) {
+    this.path = path;
+  }
+
+  async saveMessages(messages) {
+    await fs.mkdir(Path.dirname(this.path), { recursive: true });
+    await fs.writeFile(this.path, JSON.stringify(messages, null, 2), "utf-8");
+  }
+
+  async loadMessages() {
+    try {
+      const rawData = await fs.readFile(this.path, "utf-8");
+      const data = JSON.parse(rawData);
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      if (error?.code === "ENOENT") return [];
+      throw new Error(error?.code ? error.code.toString() : error.message);
+    }
+  }
+}
+
 class MessageSystem extends EventEmitter {
   constructor() {
     super();
     // Initialize the messaging system
+    this.messagePersistence = new MessagePersistence();
     this.messages = [];
     this.users = new Set();
-    this.messageId = 1;
+    this._messageLoading();
+  }
+
+  async _messageLoading() {
+    const loadedMessages = await this.messagePersistence.loadMessages();
+    this.messages = [...loadedMessages, ...this.messages];
+  }
+
+  async messageSaving() {
+    try {
+      await this.messagePersistence.saveMessages(this.messages);
+    } catch (error) {
+      this.emit("saving-error", error);
+    }
   }
 
   /**
@@ -29,7 +68,7 @@ class MessageSystem extends EventEmitter {
    */
   sendMessage(type, content, sender = "System") {
     const message = {
-      id: this.messageId++,
+      id: Date.now(),
       type: type,
       content: content,
       timestamp: Date.now(),
@@ -41,6 +80,7 @@ class MessageSystem extends EventEmitter {
     this.messages.push(message);
     this.emit("message", message);
     this.emit(type, message);
+    this.messageSaving();
     return message;
   }
 
@@ -139,7 +179,8 @@ class MessageSystem extends EventEmitter {
    */
   clearHistory() {
     this.messages = [];
-    this.sendMessage("message", `message history was cleared`);
+    this.emit(`message history was cleared`);
+    this.messageSaving();
   }
 
   /**
@@ -202,4 +243,6 @@ if (isReadyToTest) {
   console.log(`\nActive users: ${messenger.getUserCount()}`);
   console.log("Recent messages:", messenger.getMessageHistory()?.length);
   console.log("System stats:", messenger.getStats());
+
+  messenger.messageSaving();
 }

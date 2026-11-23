@@ -3,10 +3,36 @@ const { Transform } = require("stream");
 const { pipeline } = require("stream/promises");
 //import { MessageSystem } from "./task-01";
 
+class ProgressReport {
+  constructor(size) {
+    this.isValidData = true;
+    if (typeof size?.size !== "number") {
+      this.isValidData = false;
+      return;
+    }
+    this.totalSize = size.size;
+    this.progress = 0;
+    console.log(size.size);
+    this.progressPercentPrev = -1;
+  }
+  progressView(bytes) {
+    if (!this.isValidData) return;
+    this.progress += bytes;
+    if (this.totalSize !== 0) {
+      const progressPercent = Math.floor((this.progress / this.totalSize) * 100);
+      if (progressPercent !== Math.floor(this.progressPercentPrev)) {
+        console.log(`${progressPercent} %`);
+      }
+      this.progressPercentPrev = progressPercent;
+    }
+  }
+}
+
 class CSVParser extends Transform {
-  constructor(delimiter = ",", options) {
+  constructor(delimiter = ",", size, options) {
     super({ objectMode: true });
     // TODO: Initialize properties
+    this.progressReport = new ProgressReport(size);
     this.headers = null;
     this.lineNumber = 0;
     this.buffer = "";
@@ -14,9 +40,9 @@ class CSVParser extends Transform {
   }
 
   _transform(chunk, encoding, callback) {
-    console.log(this.delimiter);
     try {
       this.buffer += chunk.toString().replaceAll("\r", "");
+      const chunkSize = Buffer.byteLength(chunk, encoding || "utf8");
       this.newObjects = this.buffer.split("\n");
       this.buffer = this.newObjects.pop() ?? "";
 
@@ -41,6 +67,7 @@ class CSVParser extends Transform {
 
         this.push(record);
       }
+      this.progressReport.progressView(chunkSize);
       callback();
     } catch (error) {
       callback(error);
@@ -266,23 +293,24 @@ function standardizeDate(date) {
 async function processCSVFile(inputPath, outputPath, delimiter) {
   try {
     let transformerErrors = [];
-    //const logger = new MessageSystem();
-    await pipeline(
-      fs.createReadStream(inputPath),
-      new CSVParser(delimiter),
-      new DataTransformer(transformerErrors),
-      new CSVWriter(delimiter),
-      fs.createWriteStream(outputPath),
-    );
+    let size = await fs.promises.stat(inputPath);
+    (await fs.promises.stat(inputPath),
+      await pipeline(
+        fs.createReadStream(inputPath),
+        new CSVParser(delimiter, size),
+        new DataTransformer(transformerErrors),
+        new CSVWriter(delimiter),
+        fs.createWriteStream(outputPath),
+      ));
     if (transformerErrors.length > 0) {
       console.log(`Failed data tranformation: ${JSON.stringify(transformerErrors, null, 2)}`);
     }
   } catch (error) {
     const code = error?.code || error?.cause?.code;
     await fs.promises.unlink(outputPath).catch(() => {});
-    if (code === "ENOENT") throw new Error(`File ${inputPath} not found`);
+    if (code === "ENOENT") throw new Error(`Failed to process CSV file: File ${inputPath} not found`);
     if (code === "EACCES" || code === "EPERM") {
-      throw new Error(`Permission denied while processing ${inputPath} -> ${outputPath}`);
+      throw new Error(`Failed to process CSV file: permission denied while processing ${inputPath} -> ${outputPath}`);
     } else throw new Error(`Failed to process CSV file: ${error.message}`);
   }
 }
