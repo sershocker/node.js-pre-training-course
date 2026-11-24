@@ -1,4 +1,3 @@
-const { timeStamp } = require("console");
 const EventEmitter = require("events");
 const Path = require("path");
 const fs = require("fs/promises");
@@ -68,7 +67,7 @@ class MessageSystem extends EventEmitter {
    */
   sendMessage(type, content, sender = "System") {
     const message = {
-      id: Date.now(),
+      id: crypto.randomUUID().toString(),
       type: type,
       content: content,
       timestamp: Date.now(),
@@ -116,6 +115,28 @@ class MessageSystem extends EventEmitter {
    */
   getUserCount() {
     return this.users.size;
+  }
+
+  searchMessages(keyword = "") {
+    const normalizedKeyword = keyword.toString().trim().toLowerCase();
+    if (!normalizedKeyword) return [];
+
+    const response = [];
+    this.messages.map((message) => {
+      if (JSON.stringify(message).toLowerCase().includes(normalizedKeyword)) response.push(message);
+    });
+    return response;
+  }
+
+  filterMessages({ type, sender, from, to, content } = {}) {
+    return this.messages.filter((message) => {
+      if (type && message.type.toString() !== type.toString()) return false;
+      if (sender && message.sender.toLowerCase() !== sender.toLowerCase()) return false;
+      if (from && new Date(from) > message.timestamp) return false;
+      if (to && new Date(to) < message.timestamp) return false;
+      if (content && !message.content.toLowerCase().includes(content.toLowerCase())) return false;
+      return true;
+    });
   }
 
   /**
@@ -245,4 +266,7 @@ if (isReadyToTest) {
   console.log("System stats:", messenger.getStats());
 
   messenger.messageSaving();
+
+  //console.log(messenger.searchMessages("Alice"));
+  console.log(messenger.filterMessages({ content: "Hello" }));
 }

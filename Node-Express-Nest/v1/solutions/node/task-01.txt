@@ -1,0 +1,336 @@
+TASK 01: Custom Event Emitter
+
+- Implementation description
+    Implemented custom message system:
+    class MessageSystem implements basic methods for sending message, 
+    subscribing to different types of messages, search and filter, getting
+    message history, adding, removing and getting active users.
+    class MessagePersistence implements helper class for saving and loading
+    messages from file.
+ 
+- How to run
+    Put "task-01.js" in your working directory;
+    Start file from terminal: node .\task-01.js
+    Script creates "\data\messages.json" with data of messages. 
+
+- Solution file
+    - task-01.js
+const EventEmitter = require("events");
+const Path = require("path");
+const fs = require("fs/promises");
+
+/**
+ * Custom Event Emitter for a messaging system
+ * Extend Node.js EventEmitter to create a pub-sub messaging system
+ */
+
+class MessagePersistence {
+  constructor(path = Path.join("data", "messages.json")) {
+    this.path = path;
+  }
+
+  async saveMessages(messages) {
+    await fs.mkdir(Path.dirname(this.path), { recursive: true });
+    await fs.writeFile(this.path, JSON.stringify(messages, null, 2), "utf-8");
+  }
+
+  async loadMessages() {
+    try {
+      const rawData = await fs.readFile(this.path, "utf-8");
+      const data = JSON.parse(rawData);
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      if (error?.code === "ENOENT") return [];
+      throw new Error(error?.code ? error.code.toString() : error.message);
+    }
+  }
+}
+
+class MessageSystem extends EventEmitter {
+  constructor() {
+    super();
+    // Initialize the messaging system
+    this.messagePersistence = new MessagePersistence();
+    this.messages = [];
+    this.users = new Set();
+    this._messageLoading();
+  }
+
+  async _messageLoading() {
+    const loadedMessages = await this.messagePersistence.loadMessages();
+    this.messages = [...loadedMessages, ...this.messages];
+  }
+
+  async messageSaving() {
+    try {
+      await this.messagePersistence.saveMessages(this.messages);
+    } catch (error) {
+      this.emit("saving-error", error);
+    }
+  }
+
+  /**
+   * Send a message to the system
+   *
+   * Create a message object with id, type, content, timestamp, sender
+   * Add message to messages array
+   * Keep only last 100 messages for memory management
+   * Emit the message event and specific type event
+   *
+   * @param {string} type - Message type ('message', 'notification', 'alert')
+   * @param {string} content - Message content
+   * @param {string} sender - Optional sender name
+   * @returns {object} Created message object
+   */
+  sendMessage(type, content, sender = "System") {
+    const message = {
+      id: crypto.randomUUID().toString(),
+      type: type,
+      content: content,
+      timestamp: Date.now(),
+      sender: sender,
+    };
+    if (this.messages.length >= 100) {
+      this.messages.shift();
+    }
+    this.messages.push(message);
+    this.emit("message", message);
+    this.emit(type, message);
+    this.messageSaving();
+    return message;
+  }
+
+  /**
+   * Subscribe to all message types
+   *
+   * Listen to all messages using the 'message' event
+   *
+   * @param {function} callback - Callback function to handle messages
+   */
+  subscribeToMessages(callback) {
+    this.on("message", callback);
+  }
+
+  /**
+   * Subscribe to specific message type
+   *
+   *  Listen to specific message type events
+   *
+   * @param {string} type - Message type to subscribe to
+   * @param {function} callback - Callback function to handle messages
+   */
+  subscribeToType(type, callback) {
+    this.on(type, callback);
+  }
+
+  /**
+   * Get current number of active users
+   *
+   * Return the number of users
+   *
+   * @returns {number} Number of active users
+   */
+  getUserCount() {
+    return this.users.size;
+  }
+
+  searchMessages(keyword = "") {
+    const normalizedKeyword = keyword.toString().trim().toLowerCase();
+    if (!normalizedKeyword) return [];
+
+    const response = [];
+    this.messages.map((message) => {
+      if (JSON.stringify(message).toLowerCase().includes(normalizedKeyword)) response.push(message);
+    });
+    return response;
+  }
+
+  filterMessages({ type, sender, from, to, content } = {}) {
+    return this.messages.filter((message) => {
+      if (type && message.type.toString() !== type.toString()) return false;
+      if (sender && message.sender.toLowerCase() !== sender.toLowerCase()) return false;
+      if (from && new Date(from) > message.timestamp) return false;
+      if (to && new Date(to) < message.timestamp) return false;
+      if (content && !message.content.toLowerCase().includes(content.toLowerCase())) return false;
+      return true;
+    });
+  }
+
+  /**
+   * Get the last N messages (default 10)
+   *
+   * Return the last 'count' messages
+   *
+   * @param {number} count - Number of messages to retrieve
+   * @returns {array} Array of recent messages
+   */
+  getMessageHistory(count = 10) {
+    return this.messages.slice(-count);
+  }
+
+  /**
+   * Add a user to the system
+   *
+   * Add user to users set (avoid duplicates)
+   * Create and emit user-joined event
+   *
+   * @param {string} username - Username to add
+   */
+  addUser(username) {
+    if (!this.users.has(username)) {
+      this.users.add(username);
+      this.sendMessage("user-joined", `${username} was added`);
+    }
+  }
+
+  /**
+   * Remove a user from the system
+   *
+   * Remove user from users set
+   * Create and emit user-left event
+   *
+   * @param {string} username - Username to remove
+   */
+  removeUser(username) {
+    if (this.users.has(username)) {
+      this.users.delete(username);
+      this.sendMessage("user-left", `${username} was deleted`);
+    }
+  }
+
+  /**
+   * Get all active users
+   *
+   * Convert users Set to Array and return
+   *
+   * @returns {array} Array of usernames
+   */
+  getActiveUsers() {
+    return [...this.users];
+  }
+
+  /**
+   * Clear all messages
+   *
+   * Clear messages array
+   * Emit history-cleared event
+   */
+  clearHistory() {
+    this.messages = [];
+    this.emit(`message history was cleared`);
+    this.messageSaving();
+  }
+
+  /**
+   * Get system statistics
+   *
+   * Calculate and return statistics
+   *
+   * @returns {object} System stats
+   */
+  getStats() {
+    return {
+      totalMessages: this.messages.length,
+      activeUsers: this.users.size,
+      messagesByType: Object.groupBy(this.messages, (obj) => obj.type),
+    };
+  }
+}
+
+// Export the MessageSystem class
+module.exports = MessageSystem;
+
+// Example usage (for testing):
+const isReadyToTest = true;
+
+if (isReadyToTest) {
+  const messenger = new MessageSystem();
+
+  // Subscribe to all messages
+  messenger.subscribeToMessages((message) => {
+    console.log(`[${message.type.toUpperCase()}] ${message.content}`);
+  });
+
+  // Subscribe to specific alert messages
+  messenger.subscribeToType("alert", (message) => {
+    console.log(`🚨 ALERT: ${message.content}`);
+  });
+
+  // Subscribe to user events
+  messenger.subscribeToType("user-joined", (message) => {
+    console.log(`👋 ${message.content}`);
+  });
+
+  messenger.subscribeToType("user-left", (message) => {
+    console.log(`👋 ${message.content}`);
+  });
+
+  // Add users
+  messenger.addUser("Alice");
+  messenger.addUser("Bob");
+
+  // Send various messages
+  messenger.sendMessage("message", "Hello everyone!", "Alice");
+  messenger.sendMessage("notification", "System maintenance in 1 hour");
+  messenger.sendMessage("alert", "Server overload detected!");
+
+  // Remove user
+  messenger.removeUser("Bob");
+
+  // Check system status
+  console.log(`\nActive users: ${messenger.getUserCount()}`);
+  console.log("Recent messages:", messenger.getMessageHistory()?.length);
+  console.log("System stats:", messenger.getStats());
+
+  messenger.messageSaving();
+
+  //console.log(messenger.searchMessages("Alice"));
+  console.log(messenger.filterMessages({ content: "Hello" }));
+}
+
+
+- Example data from "data/messages.json"
+[
+  {
+    "id": "ccb2234d-a7f2-4b22-91c3-bdccb9dec46f",
+    "type": "user-joined",
+    "content": "Alice was added",
+    "timestamp": 1795536391011,
+    "sender": "System"
+  },
+  {
+    "id": "c6451ea8-f6c6-40f0-b4a4-83ee95163ac2",
+    "type": "user-joined",
+    "content": "Bob was added",
+    "timestamp": 1795536391014,
+    "sender": "System"
+  },
+  {
+    "id": "d31bb765-80e2-4e91-80f3-7c2463ca9128",
+    "type": "message",
+    "content": "Hello everyone!",
+    "timestamp": 1795536391014,
+    "sender": "Alice"
+  },
+  {
+    "id": "c1a53ecb-3245-46c7-a01c-7313a6c73f15",
+    "type": "notification",
+    "content": "System maintenance in 1 hour",
+    "timestamp": 1795536391015,
+    "sender": "System"
+  },
+  {
+    "id": "b24c604b-f3b2-4484-a2f5-f069e6765f46",
+    "type": "alert",
+    "content": "Server overload detected!",
+    "timestamp": 1795536391015,
+    "sender": "System"
+  },
+  {
+    "id": "3712bd4b-678d-4f9a-99c1-ae528d569372",
+    "type": "user-left",
+    "content": "Bob was deleted",
+    "timestamp": 1795536391015,
+    "sender": "System"
+  }
+]
